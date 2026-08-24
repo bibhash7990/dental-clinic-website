@@ -21,12 +21,6 @@ export default function AdminLoginPage() {
           Sign in to manage appointments
         </p>
         <LoginForm />
-        <div className="mt-6 space-y-1 text-center text-xs text-muted-foreground">
-          <p>Demo accounts (password after the dash):</p>
-          <p><code className="font-mono">owner@brightsmile.demo — admin123</code></p>
-          <p><code className="font-mono">desk@brightsmile.demo — desk123</code></p>
-          <p><code className="font-mono">dr.mitchell@brightsmile.demo — dentist123</code></p>
-        </div>
       </div>
     </main>
   );
