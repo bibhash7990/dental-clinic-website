@@ -385,6 +385,44 @@ export async function removeTimeBlock(id: string) {
   revalidatePath("/admin/settings");
 }
 
+// ---------- Follow-ups ----------
+
+export async function markFollowedUp(id: string, undo = false) {
+  const session = await requireRole("OWNER", "RECEPTIONIST");
+  await prisma.appointment.update({
+    where: { id },
+    data: { followedUpAt: undo ? null : new Date() },
+  });
+  await logAudit(session.email, "appointment.followup", "Appointment", id, undo ? "undone" : "handled");
+  revalidatePath("/admin/follow-ups");
+}
+
+// ---------- Settings: booking rules ----------
+
+export async function saveBookingSettings(data: {
+  slotStepMin: number;
+  minNoticeHours: number;
+  maxAdvanceDays: number;
+  bufferMin: number;
+}) {
+  const session = await requireRole("OWNER");
+  const entries: [string, number][] = [
+    ["slotStepMin", Math.min(Math.max(Math.round(data.slotStepMin), 10), 120)],
+    ["minNoticeHours", Math.min(Math.max(Math.round(data.minNoticeHours), 0), 168)],
+    ["maxAdvanceDays", Math.min(Math.max(Math.round(data.maxAdvanceDays), 1), 365)],
+    ["bufferMin", Math.min(Math.max(Math.round(data.bufferMin), 0), 60)],
+  ];
+  for (const [key, value] of entries) {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value: String(value) },
+      create: { key, value: String(value) },
+    });
+  }
+  await logAudit(session.email, "settings.bookingRules", "Setting", "booking-rules");
+  revalidatePath("/admin/settings");
+}
+
 // ---------- Settings: staff (owner only) ----------
 
 export async function saveStaffUser(data: {

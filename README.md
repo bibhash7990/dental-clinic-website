@@ -46,11 +46,28 @@ Production build: `npm run build && npm start`
 
 ![Booking flow](docs/screenshots/booking.png)
 
+### Patient self-service (no login needed)
+Every confirmation and reminder email carries a signed **manage link** where the
+patient can:
+- **Confirm** the appointment with one click
+- **Reschedule** to any available slot (reminders reset automatically)
+- **Cancel** (slot is released instantly)
+- **Add to calendar** (.ics download with a 2-hour alarm)
+
+### Automated communication (`src/lib/jobs.ts`)
+An idempotent job processor runs every 10 minutes in-process (see
+`src/instrumentation.ts`) and via `/api/cron` for external schedulers
+(`vercel.json` included):
+- **Reminders** 72h and 24h before each appointment, with a one-click confirm button
+- **Staff alert** to `CLINIC_NOTIFY_EMAIL` on every new online booking
+- **Daily digest** of today's schedule to the clinic each morning
+- **Review requests** ~2h after completed visits (enable with `GOOGLE_REVIEW_URL`)
+
 ### Scheduling engine (all DB-driven, editable in the admin UI)
 - Per-dentist weekly working hours
 - Per-treatment durations and prices
 - Closed dates / holidays and time-off blocks (per dentist or whole clinic)
-- Minimum booking notice and maximum advance window
+- Slot interval, buffer time between appointments, minimum notice, max advance window
 
 ### Admin panel (`/admin`)
 - **Calendar** — day view with a column per dentist, week view per dentist,
@@ -60,9 +77,10 @@ Production build: `npm run build && npm start`
   "squeeze in" override for out-of-hours bookings
 - **Status lifecycle**: unconfirmed → confirmed → arrived → completed / cancelled / no-show
 - **Patients** — records auto-created from bookings: visit history, notes, no-show count, search
+- **Follow-ups** — no-shows and cancellations who never rebooked, in one chase list
 - **Day sheet** — printable daily schedule for the front desk
-- **Settings** — treatments & pricing, working hours, closed dates, time blocks, staff accounts
-- **Audit log** — who changed what, when
+- **Settings** — booking rules, treatments & pricing, working hours, closed dates, time blocks, staff accounts
+- **Audit log** — who changed what, when (patient self-service actions included)
 
 ![Admin calendar — day view](docs/screenshots/admin-calendar.png)
 ![Admin calendar — week view](docs/screenshots/admin-calendar-week.png)
@@ -95,7 +113,11 @@ Copy `.env.example` to `.env`. The app runs with no email configuration
 3. In **Account → General**: copy the **Public Key** and **Private Key**, and enable
    **"Allow EmailJS API for non-browser applications"** (this app sends server-side,
    so keys never reach the browser).
-4. Fill the four `EMAILJS_*` values in `.env` and restart.
+4. Create a **second template** for reminders/notifications: its body is just the
+   single line from [`emailjs-generic-template.html`](emailjs-generic-template.html)
+   (`{{{message_html}}}`), To = `{{to_email}}`, Subject = `{{subject}}` — put its id
+   in `EMAILJS_TEMPLATE_ID_GENERIC`.
+5. Fill the `EMAILJS_*` values in `.env` and restart.
 
 Emails then deliver through your own Gmail to any patient address:
 

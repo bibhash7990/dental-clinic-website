@@ -4,12 +4,14 @@ export interface BookingSettings {
   slotStepMin: number;
   minNoticeHours: number;
   maxAdvanceDays: number;
+  bufferMin: number;
 }
 
 const SETTING_DEFAULTS: BookingSettings = {
   slotStepMin: 30,
   minNoticeHours: 12,
   maxAdvanceDays: 90,
+  bufferMin: 0,
 };
 
 export async function getBookingSettings(): Promise<BookingSettings> {
@@ -19,6 +21,7 @@ export async function getBookingSettings(): Promise<BookingSettings> {
     slotStepMin: Number(map.slotStepMin) || SETTING_DEFAULTS.slotStepMin,
     minNoticeHours: Number(map.minNoticeHours) || SETTING_DEFAULTS.minNoticeHours,
     maxAdvanceDays: Number(map.maxAdvanceDays) || SETTING_DEFAULTS.maxAdvanceDays,
+    bufferMin: Number(map.bufferMin) >= 0 ? Number(map.bufferMin) : SETTING_DEFAULTS.bufferMin,
   };
 }
 
@@ -124,11 +127,12 @@ export async function getAvailability(options: {
     if (dentist.availability.length === 0) continue;
 
     const busy: Interval[] = [
+      // Existing appointments padded with the configured buffer on both sides
       ...appointments
         .filter((a) => a.dentistId === dentist.id)
         .map((a) => ({
-          start: timeToMin(a.timeSlot),
-          end: timeToMin(a.timeSlot) + a.durationMin,
+          start: timeToMin(a.timeSlot) - settings.bufferMin,
+          end: timeToMin(a.timeSlot) + a.durationMin + settings.bufferMin,
         })),
       ...blocks
         .filter((b) => b.dentistId === dentist.id)

@@ -8,8 +8,10 @@ import {
   ClosedDatesPanel,
   TimeBlocksPanel,
   StaffPanel,
+  BookingRulesPanel,
 } from "@/components/admin/settings-panels";
 import { Card, CardContent } from "@/components/ui/card";
+import { getBookingSettings } from "@/lib/availability";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -71,6 +73,7 @@ export default async function SettingsPage() {
         />
         {isOwner && (
           <>
+            <BookingRulesPanel settings={await getBookingSettings()} />
             <ServicesPanel
               services={services.map((s) => ({
                 id: s.id,

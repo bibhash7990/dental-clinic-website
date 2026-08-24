@@ -10,6 +10,7 @@ const nav = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/calendar", label: "Calendar" },
   { href: "/admin/patients", label: "Patients" },
+  { href: "/admin/follow-ups", label: "Follow-ups" },
   { href: "/admin/day-sheet", label: "Day sheet" },
   { href: "/admin/settings", label: "Settings" },
 ];

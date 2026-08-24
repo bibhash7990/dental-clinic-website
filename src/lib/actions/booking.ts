@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { bookingSchema, type BookingInput } from "@/lib/validation";
-import { sendBookingConfirmation } from "@/lib/email";
+import { sendBookingConfirmation, sendClinicNewBookingAlert } from "@/lib/email";
 import {
   getAvailability,
   getBookingSettings,
@@ -140,8 +140,9 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
   const patientId = await upsertPatient(data);
   const reference = makeReference();
 
+  let appointmentId: string;
   try {
-    await prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       const clash = await tx.appointment.findFirst({
         where: {
           date: data.date,
@@ -153,7 +154,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
       });
       if (clash) throw new Error("SLOT_TAKEN");
 
-      await tx.appointment.create({
+      return tx.appointment.create({
         data: {
           reference,
           patientId,
@@ -172,6 +173,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
         },
       });
     });
+    appointmentId = created.id;
   } catch (err) {
     if (err instanceof Error && err.message === "SLOT_TAKEN") {
       return {
@@ -184,13 +186,20 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
     return { ok: false, error: "Something went wrong. Please try again." };
   }
 
-  await sendBookingConfirmation({
+  const emailData = {
+    id: appointmentId,
     name: data.name,
     email: data.email,
     serviceTitle: service.title,
     date: data.date,
     timeSlot: data.timeSlot,
     reference,
+  };
+  await sendBookingConfirmation(emailData);
+  await sendClinicNewBookingAlert({
+    ...emailData,
+    phone: data.phone,
+    createdBy: "ONLINE",
   });
 
   return { ok: true, reference };

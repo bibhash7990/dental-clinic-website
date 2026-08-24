@@ -127,6 +127,12 @@ model Appointment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Automation stamps (Phase 2)
+  reminder72At  DateTime?
+  reminder24At  DateTime?
+  reviewAskAt   DateTime?
+  followedUpAt  DateTime? // no-show/cancellation chased by staff
+
   @@index([date, timeSlot])
   @@index([date])
   @@index([status])

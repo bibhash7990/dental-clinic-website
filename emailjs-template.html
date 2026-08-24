@@ -7,7 +7,7 @@
 
   Variables sent by the website:
     to_email, patient_name, reference, service, date, time,
-    clinic_name, clinic_phone, clinic_address
+    clinic_name, clinic_phone, clinic_address, manage_url
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -61,6 +61,16 @@
                 <td style="padding:12px 0;font-size:14px;color:#134e4a;font-weight:bold;">{{clinic_address}}</td>
               </tr>
             </table>
+
+            <!-- Manage button -->
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px auto 0;">
+              <tr><td style="border-radius:10px;background-color:#0891b2;">
+                <a href="{{manage_url}}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;">Manage appointment</a>
+              </td></tr>
+            </table>
+            <p style="margin:10px 0 0;font-size:12px;color:#3f6b66;text-align:center;">
+              Confirm, reschedule, cancel, or add to your calendar — no login needed.
+            </p>
 
             <!-- Tips -->
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background-color:#f0fdf4;border-left:4px solid #16a34a;border-radius:8px;">

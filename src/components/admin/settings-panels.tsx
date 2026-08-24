@@ -11,6 +11,7 @@ import {
   addTimeBlock,
   removeClosedDate,
   removeTimeBlock,
+  saveBookingSettings,
   saveDentistHours,
   saveService,
   saveStaffUser,
@@ -488,6 +489,84 @@ export function HoursPanel({
           </Button>
         </div>
       )}
+    </PanelCard>
+  );
+}
+
+// ---------- Booking rules ----------
+
+export function BookingRulesPanel({
+  settings,
+}: {
+  settings: {
+    slotStepMin: number;
+    minNoticeHours: number;
+    maxAdvanceDays: number;
+    bufferMin: number;
+  };
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState(settings);
+
+  const fields: {
+    key: keyof typeof settings;
+    label: string;
+    hint: string;
+  }[] = [
+    { key: "slotStepMin", label: "Slot interval (min)", hint: "Gap between offered start times" },
+    { key: "bufferMin", label: "Buffer (min)", hint: "Gap kept free around each appointment" },
+    { key: "minNoticeHours", label: "Min notice (hours)", hint: "How far ahead patients must book" },
+    { key: "maxAdvanceDays", label: "Max advance (days)", hint: "How far into the future bookings open" },
+  ];
+
+  return (
+    <PanelCard
+      icon={Clock3}
+      title="Booking rules"
+      subtitle="Global rules the online booking engine applies to every slot."
+    >
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {fields.map((f) => (
+          <div key={f.key}>
+            <label htmlFor={`br-${f.key}`} className="text-sm font-medium">
+              {f.label}
+            </label>
+            <input
+              id={`br-${f.key}`}
+              type="number"
+              min={0}
+              value={form[f.key]}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, [f.key]: Number(e.target.value) }))
+              }
+              className={cn(inputStyles, "mt-1.5 w-full")}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">{f.hint}</p>
+          </div>
+        ))}
+      </div>
+      <Button
+        className="mt-4"
+        disabled={isPending}
+        onClick={() =>
+          startTransition(async () => {
+            await saveBookingSettings(form);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+          })
+        }
+      >
+        {isPending ? (
+          <>
+            <Loader2 className="animate-spin" aria-hidden /> Saving…
+          </>
+        ) : saved ? (
+          "Saved ✓"
+        ) : (
+          "Save rules"
+        )}
+      </Button>
     </PanelCard>
   );
 }
