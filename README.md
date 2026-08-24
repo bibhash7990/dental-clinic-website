@@ -5,6 +5,10 @@ online booking system with live availability, a patient portal with digital inta
 and moderated reviews, and a practice-management admin panel with a drag-and-drop
 calendar, patient records, reporting, and staff roles.
 
+**Live demo:** <https://brightsmile-pi.vercel.app> · **Admin panel:**
+<https://brightsmile-pi.vercel.app/admin> ([sign in with the demo accounts
+below](#admin-access))
+
 ![Home page](docs/screenshots/home.png)
 
 ## Tech stack
@@ -133,11 +137,16 @@ An idempotent job processor runs every 10 minutes in-process (see
 
 `/admin` redirects to `/admin/login`. Three roles ship with the app:
 
-| Account | Role |
-|---|---|
-| `owner@brightsmile.demo` | **Owner** — everything incl. settings, staff, audit log |
-| `desk@brightsmile.demo` | **Receptionist** — calendar, patients, bookings, blocks |
-| `dr.mitchell@brightsmile.demo` | **Dentist** — schedule access |
+| Account | Role | Demo password |
+|---|---|---|
+| `owner@brightsmile.demo` | **Owner** — everything incl. settings, staff, audit log | `pubuM0d1-msc-BldXFTqEvmQB` |
+| `desk@brightsmile.demo` | **Receptionist** — calendar, patients, bookings, blocks | `qAMVA3qKZ5Y5-5Idkk-np_hLE` |
+| `dr.mitchell@brightsmile.demo` | **Dentist** — schedule access | `ONH0MSx_YHUN-DM69LmFH0IjY` |
+
+The passwords above open the hosted demo at
+<https://brightsmile-pi.vercel.app/admin> so reviewers can look around. They
+belong to this demo deployment only — a real practice sets its own on first
+deploy, as described next.
 
 The seed does **not** set a shared default password. It reads
 `SEED_OWNER_PASSWORD`, `SEED_DESK_PASSWORD` and `SEED_DENTIST_PASSWORD` from the
