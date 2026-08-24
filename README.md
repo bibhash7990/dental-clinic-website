@@ -13,7 +13,7 @@ calendar, patient records, reporting, and staff roles.
 |---|---|
 | Framework | **Next.js 16** (App Router, Server Components, Turbopack) + **TypeScript** |
 | Styling | **Tailwind CSS v4** + **shadcn/ui** (Base UI) + **Framer Motion** |
-| Database | **Prisma 7** + **SQLite** via `better-sqlite3` adapter (swap to Postgres by changing the adapter) |
+| Database | **Prisma 7** + **Postgres** via the `@prisma/adapter-pg` driver adapter |
 | Calendar | **react-big-calendar** with drag-and-drop rescheduling |
 | Forms | **react-hook-form + zod** — shared client/server validation |
 | Email | **EmailJS** (sends via your own connected Gmail to any recipient), **Resend** fallback, console fallback with zero config |
@@ -21,11 +21,14 @@ calendar, patient records, reporting, and staff roles.
 
 ## Getting started
 
+You need a Postgres database — [Neon](https://neon.tech) has a free tier and takes
+about a minute to create. Copy its **pooled** connection string.
+
 ```bash
 npm install                 # also runs prisma generate (postinstall)
-npx prisma db push          # creates prisma/dev.db from the schema
-npx tsx prisma/seed.ts      # seeds 20 treatments, 3 dentists, staff accounts, booking rules
-cp .env.example .env        # then fill in values (email is optional — see below)
+cp .env.example .env        # set DATABASE_URL and AUTH_SECRET at minimum
+npm run db:push             # creates the tables
+npm run db:seed             # 20 treatments, 3 dentists, staff accounts, rules, sample reviews
 npm run dev                 # http://localhost:3000
 ```
 
@@ -201,10 +204,42 @@ prisma/                schema, seed script, SQLite database (gitignored)
 scripts/               dev utilities (check-db, phase3-links, portal-link, fixtures)
 ```
 
+## Deploying to Vercel
+
+1. **Create the database.** In the Vercel project, *Storage → Create Database →
+   Neon Postgres*. Vercel sets `DATABASE_URL` for you. (Or create it at neon.tech
+   and paste the pooled connection string in yourself.)
+2. **Create the tables** from your machine, pointing `.env` at the same database:
+   `npm run db:push && npm run db:seed`. Do this **before** the first deploy —
+   the pricing and reviews pages are prerendered and read from the database at
+   build time.
+3. **Set the environment variables** in *Settings → Environment Variables*:
+
+   | Variable | Notes |
+   |---|---|
+   | `DATABASE_URL` | set automatically by the Neon integration |
+   | `AUTH_SECRET` | a fresh long random string — signs staff sessions and every patient link |
+   | `NEXT_PUBLIC_SITE_URL` | your production URL, e.g. `https://brightsmile.vercel.app` |
+   | `CRON_SECRET` | random string; Vercel sends it to `/api/cron` automatically |
+   | `EMAILJS_*` | service, both template ids, public and private key |
+   | `CLINIC_NOTIFY_EMAIL` | where staff alerts and the daily digest go |
+   | `GOOGLE_REVIEW_URL` | optional, adds a Google link to the review flow |
+
+4. **Deploy.** Import the repo (the app is at the repository root, no root
+   directory to configure) and Vercel detects Next.js automatically.
+5. **Scheduling.** `vercel.json` registers a daily 6am run of `/api/cron`, which
+   is all the Hobby plan allows. For reminders that land on time, add a free
+   external scheduler ([cron-job.org](https://cron-job.org)) hitting
+   `https://your-domain/api/cron` every 15 minutes with the header
+   `Authorization: Bearer <CRON_SECRET>`. On Pro, change the schedule in
+   `vercel.json` to `*/15 * * * *` and skip the external one.
+
+The in-process scheduler in `src/instrumentation.ts` disables itself on Vercel —
+serverless functions freeze between requests, so intervals can't be trusted.
+
 ## Production notes
 
 Before deploying for a real clinic:
-- Swap SQLite for Postgres/Turso (Prisma adapter change) — required on serverless hosts
 - Rotate `AUTH_SECRET`, all email keys, and every seeded password
 - Add rate limiting to the public forms, plus privacy/terms pages
 - Intake forms hold health information — review your jurisdiction's requirements

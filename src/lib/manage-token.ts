@@ -46,8 +46,17 @@ export const createManageToken = (appointmentId: string) =>
 export const verifyManageToken = (token: string | undefined) =>
   verifyToken("manage", token);
 
+/**
+ * Absolute base for links that travel in email. Set NEXT_PUBLIC_SITE_URL to
+ * your real domain; the Vercel values are a fallback so preview and first
+ * deploys still produce working links.
+ */
 export function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  const vercelHost =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+  if (vercelHost) return `https://${vercelHost}`;
+  return "http://localhost:3000";
 }
 
 export function manageUrl(appointmentId: string): string {

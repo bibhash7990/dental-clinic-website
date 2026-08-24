@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processScheduledJobs } from "@/lib/jobs";
 
-// External scheduler entry point (e.g. Vercel Cron). Secured by CRON_SECRET;
-// open in development when no secret is configured.
+// Never cache — every call must actually run the jobs.
+export const dynamic = "force-dynamic";
+// Sending a batch of emails takes longer than the 10s serverless default.
+export const maxDuration = 60;
+
+// External scheduler entry point (Vercel Cron sends `Authorization: Bearer
+// $CRON_SECRET` automatically; any other scheduler must send the same header).
+// Open in development when no secret is configured.
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret) {

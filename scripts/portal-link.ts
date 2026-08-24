@@ -1,14 +1,7 @@
 // Dev utility: mint a patient-portal magic link without waiting for the email.
 // Usage: npx tsx --env-file=.env scripts/portal-link.ts patient@example.com
 import { createHash, randomBytes } from "crypto";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../src/generated/prisma/client";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
-  }),
-});
+import { prisma } from "./client";
 
 async function main() {
   const email = (process.argv[2] ?? "").toLowerCase();

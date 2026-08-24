@@ -1,12 +1,7 @@
 // Dev utility: print the patient manage URL for the latest appointment.
 // Run: npx tsx scripts/manage-url.ts [reference]
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { prisma } from "./client";
 import { manageUrl } from "../src/lib/manage-token";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" }),
-});
 
 async function main() {
   const ref = process.argv[2];

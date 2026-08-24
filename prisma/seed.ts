@@ -1,13 +1,6 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { prisma } from "../scripts/client";
 import { hashPassword } from "../src/lib/password";
 import { services } from "../src/data/services";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
-  }),
-});
 
 const DURATION_BY_CATEGORY: Record<string, number> = {
   preventive: 45,

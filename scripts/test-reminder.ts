@@ -1,11 +1,6 @@
 // Dev utility: create a CONFIRMED appointment ~48h from now to exercise the
 // 72h reminder, then show reminder stamps for upcoming appointments.
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../src/generated/prisma/client";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" }),
-});
+import { prisma } from "./client";
 
 async function main() {
   const target = new Date(Date.now() + 48 * 3600_000);

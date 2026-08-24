@@ -1,14 +1,7 @@
 // Dev utility: print the Phase 3 patient links (intake, review, portal) so the
 // flows can be exercised without waiting for the scheduler to send an email.
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { prisma } from "./client";
 import { createToken, siteUrl } from "../src/lib/manage-token";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
-  }),
-});
 
 async function main() {
   const upcoming = await prisma.appointment.findFirst({

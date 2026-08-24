@@ -3,6 +3,10 @@
 // (or any external scheduler) instead.
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // Serverless functions are frozen between requests, so a setInterval here
+  // would fire unpredictably (or never). Vercel Cron / an external scheduler
+  // calls /api/cron instead.
+  if (process.env.VERCEL) return;
 
   const g = globalThis as unknown as { __bsJobsTimer?: ReturnType<typeof setInterval> };
   if (g.__bsJobsTimer) return;

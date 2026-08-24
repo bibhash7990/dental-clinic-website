@@ -233,9 +233,9 @@ export async function searchPatients(query: string) {
   return prisma.patient.findMany({
     where: {
       OR: [
-        { name: { contains: q } },
+        { name: { contains: q, mode: "insensitive" } },
         { phone: { contains: q.replace(/[^\d+]/g, "") || q } },
-        { email: { contains: q.toLowerCase() } },
+        { email: { contains: q.toLowerCase(), mode: "insensitive" } },
       ],
     },
     take: 8,

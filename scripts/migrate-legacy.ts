@@ -1,10 +1,5 @@
 // One-off: link pre-Phase-1 appointments (no dentist/patient) to defaults.
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../src/generated/prisma/client";
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" }),
-});
+import { prisma } from "./client";
 
 async function main() {
   const mitchell = await prisma.dentist.findFirst({
