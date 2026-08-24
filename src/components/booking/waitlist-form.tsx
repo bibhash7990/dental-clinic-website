@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BellRing, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HoneypotField } from "@/components/honeypot-field";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -111,7 +112,8 @@ export function WaitlistForm({
   return (
     <Card>
       <CardContent className="p-6 sm:p-8">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit(onSubmit)} className="relative space-y-5" noValidate>
+          <HoneypotField register={register("website")} />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="wl-name">Full name</Label>

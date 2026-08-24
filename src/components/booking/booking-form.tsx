@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarCheck, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HoneypotField } from "@/components/honeypot-field";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -155,7 +156,8 @@ export function BookingForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="relative space-y-6">
+      <HoneypotField register={register("website")} />
       {serverError && (
         <div
           role="alert"

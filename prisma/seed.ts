@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { prisma } from "../scripts/client";
 import { hashPassword } from "../src/lib/password";
 import { services } from "../src/data/services";
@@ -13,6 +14,12 @@ const DURATION_BY_CATEGORY: Record<string, number> = {
   endodontic: 90,
   technology: 30,
 };
+
+function passwordEnvFor(email: string): string {
+  if (email.startsWith("owner@")) return "SEED_OWNER_PASSWORD";
+  if (email.startsWith("desk@")) return "SEED_DESK_PASSWORD";
+  return "SEED_DENTIST_PASSWORD";
+}
 
 async function main() {
   // Services from the marketing dataset
@@ -99,33 +106,50 @@ async function main() {
     dentistIds[d.name] = created.id;
   }
 
-  // Staff accounts
+  // Staff accounts. Passwords come from the environment; anything missing gets
+  // a random one, printed once below. A shared default like "admin123" would
+  // otherwise end up live on every deployment — and in the public README.
+  const generated: [string, string][] = [];
+  function passwordFor(envKey: string): string {
+    const fromEnv = process.env[envKey];
+    if (fromEnv && fromEnv.length >= 8) return fromEnv;
+    const random = `${randomBytes(9).toString("base64url")}-${randomBytes(9).toString("base64url")}`;
+    generated.push([envKey, random]);
+    return random;
+  }
+
   const users = [
     {
       email: "owner@brightsmile.demo",
       name: "Clinic Owner",
       role: "OWNER",
-      password: "admin123",
+      password: passwordFor("SEED_OWNER_PASSWORD"),
       dentistId: null as string | null,
     },
     {
       email: "desk@brightsmile.demo",
       name: "Front Desk",
       role: "RECEPTIONIST",
-      password: "desk123",
+      password: passwordFor("SEED_DESK_PASSWORD"),
       dentistId: null,
     },
     {
       email: "dr.mitchell@brightsmile.demo",
       name: "Dr. Sarah Mitchell",
       role: "DENTIST",
-      password: "dentist123",
+      password: passwordFor("SEED_DENTIST_PASSWORD"),
       dentistId: dentistIds["Dr. Sarah Mitchell"] ?? null,
     },
   ];
+  const createdUsers: string[] = [];
   for (const u of users) {
+    const before = await prisma.user.findUnique({
+      where: { email: u.email },
+      select: { id: true },
+    });
     await prisma.user.upsert({
       where: { email: u.email },
+      // Never reset the password of an account that already exists.
       update: {},
       create: {
         email: u.email,
@@ -135,6 +159,7 @@ async function main() {
         dentistId: u.dentistId,
       },
     });
+    if (!before) createdUsers.push(u.email);
   }
 
   // Booking rules
@@ -223,6 +248,18 @@ async function main() {
   console.log(`  dentists:  ${await prisma.dentist.count()}`);
   console.log(`  users:     ${await prisma.user.count()}`);
   console.log(`  reviews:   ${await prisma.review.count()}`);
+
+  const shown = generated.filter(([key]) =>
+    createdUsers.some((email) => passwordEnvFor(email) === key)
+  );
+  if (shown.length > 0) {
+    console.log("");
+    console.log("  Generated passwords — save these now, they are not stored anywhere:");
+    for (const [key, value] of shown) {
+      console.log(`    ${key.replace("SEED_", "").replace("_PASSWORD", "").toLowerCase().padEnd(8)} ${value}`);
+    }
+    console.log("  Set SEED_*_PASSWORD in .env to choose them yourself.");
+  }
 }
 
 main().finally(() => prisma.$disconnect());

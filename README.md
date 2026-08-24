@@ -131,15 +131,28 @@ An idempotent job processor runs every 10 minutes in-process (see
 
 ## Admin access
 
-`/admin` redirects to `/admin/login`. Seeded demo staff accounts:
+`/admin` redirects to `/admin/login`. Three roles ship with the app:
 
-| Account | Password | Role |
-|---|---|---|
-| `owner@brightsmile.demo` | `admin123` | **Owner** — everything incl. settings, staff, audit log |
-| `desk@brightsmile.demo` | `desk123` | **Receptionist** — calendar, patients, bookings, blocks |
-| `dr.mitchell@brightsmile.demo` | `dentist123` | **Dentist** — schedule access |
+| Account | Role |
+|---|---|
+| `owner@brightsmile.demo` | **Owner** — everything incl. settings, staff, audit log |
+| `desk@brightsmile.demo` | **Receptionist** — calendar, patients, bookings, blocks |
+| `dr.mitchell@brightsmile.demo` | **Dentist** — schedule access |
 
-Re-running `npx tsx prisma/seed.ts` is idempotent (safe to repeat).
+The seed does **not** set a shared default password. It reads
+`SEED_OWNER_PASSWORD`, `SEED_DESK_PASSWORD` and `SEED_DENTIST_PASSWORD` from the
+environment, and generates a random one — printed once, at the end of the seed
+output — for any that are missing. Nothing weak or guessable ever reaches a
+deployment.
+
+To change a password later:
+
+```bash
+npx tsx --env-file=.env scripts/set-staff-password.ts owner@brightsmile.demo 'a-long-password'
+```
+
+Re-running `npm run db:seed` is idempotent and never overwrites an existing
+account's password.
 
 ## Environment variables
 

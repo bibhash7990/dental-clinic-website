@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/manage-token";
 import { intakeSchema, type IntakeInput } from "@/lib/validation";
 import { logAudit } from "@/lib/audit";
+import { checkRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 
 export type IntakeResult =
   | { ok: true }
@@ -15,6 +16,10 @@ export async function submitIntake(
   token: string,
   input: IntakeInput
 ): Promise<IntakeResult> {
+  const limit = await checkRateLimit("intake");
+  if (!limit.ok) {
+    return { ok: false, error: rateLimitMessage(limit.retryAfterSec) };
+  }
   const appointmentId = verifyToken("intake", token);
   if (!appointmentId) return { ok: false, error: "This link is not valid." };
 

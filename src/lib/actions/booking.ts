@@ -3,6 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { bookingSchema, type BookingInput } from "@/lib/validation";
 import {
+  checkRateLimit,
+  isHoneypotTripped,
+  rateLimitMessage,
+} from "@/lib/rate-limit";
+import {
   sendBookingConfirmation,
   sendClinicNewBookingAlert,
   sendIntakeRequest,
@@ -103,6 +108,15 @@ export async function upsertPatient(data: {
 }
 
 export async function createBooking(input: BookingInput): Promise<BookingResult> {
+  // Bots fill the hidden field; tell them nothing and write nothing.
+  if (isHoneypotTripped(input.website)) {
+    return { ok: true, reference: "BSD-000000" };
+  }
+  const limit = await checkRateLimit("booking");
+  if (!limit.ok) {
+    return { ok: false, error: rateLimitMessage(limit.retryAfterSec) };
+  }
+
   const parsed = bookingSchema.safeParse(input);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};

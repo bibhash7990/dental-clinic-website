@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { clearPortalSession, createMagicLink, MAGIC_LINK_MINUTES } from "@/lib/portal";
 import { sendPortalMagicLink } from "@/lib/email";
+import { checkRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 
 const emailSchema = z.string().trim().email();
 
@@ -16,6 +17,10 @@ export async function requestMagicLink(
   _prev: { sent?: boolean; error?: string } | undefined,
   formData: FormData
 ): Promise<{ sent?: boolean; error?: string }> {
+  const limit = await checkRateLimit("magicLink");
+  if (!limit.ok) {
+    return { error: rateLimitMessage(limit.retryAfterSec) };
+  }
   const raw = formData.get("email");
   const parsed = emailSchema.safeParse(typeof raw === "string" ? raw : "");
   if (!parsed.success) {

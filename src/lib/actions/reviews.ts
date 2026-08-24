@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/manage-token";
 import { reviewSchema, type ReviewInput } from "@/lib/validation";
 import { logAudit } from "@/lib/audit";
+import { checkRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 
 export type ReviewResult =
   | { ok: true; rating: number }
@@ -19,6 +20,10 @@ export async function submitReview(
   token: string,
   input: ReviewInput
 ): Promise<ReviewResult> {
+  const limit = await checkRateLimit("review");
+  if (!limit.ok) {
+    return { ok: false, error: rateLimitMessage(limit.retryAfterSec) };
+  }
   const appointmentId = verifyToken("review", token);
   if (!appointmentId) return { ok: false, error: "This link is not valid." };
 

@@ -2,12 +2,23 @@
 
 import { prisma } from "@/lib/prisma";
 import { contactSchema, type ContactInput } from "@/lib/validation";
+import {
+  checkRateLimit,
+  isHoneypotTripped,
+  rateLimitMessage,
+} from "@/lib/rate-limit";
 
 export type ContactResult =
   | { ok: true }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
 export async function submitContact(input: ContactInput): Promise<ContactResult> {
+  if (isHoneypotTripped(input.website)) return { ok: true };
+  const limit = await checkRateLimit("contact");
+  if (!limit.ok) {
+    return { ok: false, error: rateLimitMessage(limit.retryAfterSec) };
+  }
+
   const parsed = contactSchema.safeParse(input);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};

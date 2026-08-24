@@ -255,3 +255,15 @@ model AuditLog {
 
   @@index([createdAt])
 }
+
+// ---------- Abuse protection ----------
+
+/// One row per (action, client) window. Counting in the database rather than
+/// in memory is what makes the limit hold across serverless instances.
+model RateLimit {
+  key         String   @id // "<action>:<ip>"
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@index([windowStart])
+}

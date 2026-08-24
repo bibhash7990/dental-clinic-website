@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { waitlistSchema, type WaitlistInput } from "@/lib/validation";
 import { logAudit } from "@/lib/audit";
+import {
+  checkRateLimit,
+  isHoneypotTripped,
+  rateLimitMessage,
+} from "@/lib/rate-limit";
 
 export type WaitlistResult =
   | { ok: true }
@@ -11,6 +16,12 @@ export type WaitlistResult =
 
 /** Public form: "tell me if something opens up sooner". */
 export async function joinWaitlist(input: WaitlistInput): Promise<WaitlistResult> {
+  if (isHoneypotTripped(input.website)) return { ok: true };
+  const limit = await checkRateLimit("waitlist");
+  if (!limit.ok) {
+    return { ok: false, error: rateLimitMessage(limit.retryAfterSec) };
+  }
+
   const parsed = waitlistSchema.safeParse(input);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};

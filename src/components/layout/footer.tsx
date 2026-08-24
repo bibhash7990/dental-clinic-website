@@ -152,7 +152,15 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {site.name}. All rights reserved.
           </p>
-          <p>Demo website — not a real clinic.</p>
+          <nav aria-label="Legal" className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-primary">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-primary">
+              Terms
+            </Link>
+            <span>Demo website — not a real clinic.</span>
+          </nav>
         </div>
       </div>
     </footer>
