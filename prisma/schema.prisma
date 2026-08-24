@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------- Staff & auth ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         String // OWNER | RECEPTIONIST | DENTIST
+  passwordHash String
+  dentistId    String?  @unique
+  dentist      Dentist? @relation(fields: [dentistId], references: [id])
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+// ---------- Providers & availability ----------
+
+model Dentist {
+  id           String             @id @default(cuid())
+  name         String
+  title        String?
+  color        String             @default("#0891B2")
+  active       Boolean            @default(true)
+  sortOrder    Int                @default(0)
+  availability AvailabilityRule[]
+  appointments Appointment[]
+  timeBlocks   TimeBlock[]
+  user         User?
+}
+
+model AvailabilityRule {
+  id        String  @id @default(cuid())
+  dentistId String
+  dentist   Dentist @relation(fields: [dentistId], references: [id], onDelete: Cascade)
+  weekday   Int // 0 = Sunday … 6 = Saturday
+  startTime String // "09:00"
+  endTime   String // "18:00"
+
+  @@index([dentistId, weekday])
+}
+
+model ClosedDate {
+  id     String  @id @default(cuid())
+  date   String  @unique // YYYY-MM-DD
+  reason String?
+}
+
+model TimeBlock {
+  id        String   @id @default(cuid())
+  dentistId String? // null = whole clinic
+  dentist   Dentist? @relation(fields: [dentistId], references: [id], onDelete: Cascade)
+  date      String // YYYY-MM-DD
+  startTime String
+  endTime   String
+  reason    String?
+
+  @@index([date])
+}
+
+// ---------- Services (bookable, admin-editable) ----------
+
+model ServiceItem {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  category    String
+  durationMin Int     @default(45)
+  price       Int     @default(0)
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+}
+
+// ---------- Patients ----------
+
+model Patient {
+  id           String        @id @default(cuid())
+  name         String
+  email        String?
+  phone        String
+  dateOfBirth  String?
+  createdAt    DateTime      @default(now())
+  notes        PatientNote[]
+  appointments Appointment[]
+
+  @@index([phone])
+  @@index([name])
+}
+
+model PatientNote {
+  id         String   @id @default(cuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorName String
+  text       String
+  createdAt  DateTime @default(now())
+}
+
+// ---------- Appointments ----------
+
+model Appointment {
+  id           String   @id @default(cuid())
+  reference    String   @unique
+  patientId    String?
+  patient      Patient? @relation(fields: [patientId], references: [id])
+  dentistId    String?
+  dentist      Dentist? @relation(fields: [dentistId], references: [id])
+  name         String
+  email        String
+  phone        String
+  serviceSlug  String
+  serviceTitle String
+  date         String // YYYY-MM-DD
+  timeSlot     String // HH:mm (24h) start time
+  durationMin  Int      @default(45)
+  isNewPatient Boolean  @default(false)
+  notes        String?
+  status       String   @default("PENDING") // PENDING | CONFIRMED | ARRIVED | COMPLETED | CANCELLED | NO_SHOW
+  createdBy    String   @default("ONLINE") // ONLINE | ADMIN
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([date, timeSlot])
+  @@index([date])
+  @@index([status])
+  @@index([patientId])
+  @@index([dentistId, date])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ---------- Settings & audit ----------
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userEmail String
+  action    String // e.g. appointment.create
+  entity    String
+  entityId  String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
