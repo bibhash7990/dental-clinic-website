@@ -1,5 +1,5 @@
 import { site, formatSlot } from "@/data/site";
-import { manageUrl } from "@/lib/manage-token";
+import { intakeUrl, manageUrl, reviewUrl, siteUrl } from "@/lib/manage-token";
 
 // ---------------------------------------------------------------------------
 // Transport: EmailJS (booking template or generic template) → Resend → console
@@ -150,6 +150,8 @@ export interface AppointmentEmailData {
   timeSlot: string;
   reference: string;
   status?: string;
+  /** New patient who hasn't returned their intake form yet */
+  intakePending?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -222,6 +224,11 @@ export async function sendReminder(
        ["Reference", data.reference],
      ])}
      ${button(manage, data.status === "PENDING" ? "Confirm appointment" : "Manage appointment")}
+     ${
+       data.intakePending
+         ? `<p style="margin:18px 0 0;font-size:13px;color:#134e4a;text-align:center;">Still to do: <a href="${intakeUrl(data.id)}" style="color:#0891b2;font-weight:bold;">complete your new-patient form</a> so you can skip the paperwork at reception.</p>`
+         : ""
+     }
      <p style="margin:14px 0 0;font-size:12px;color:#3f6b66;text-align:center;">Can't make it? Use the same link to reschedule or cancel — it helps us offer the slot to someone else.</p>`
   );
   return sendEmail({
@@ -305,15 +312,100 @@ export async function sendDailyDigest(
 // ---------------------------------------------------------------------------
 
 export async function sendReviewRequest(data: AppointmentEmailData) {
-  const reviewUrl = process.env.GOOGLE_REVIEW_URL;
-  if (!reviewUrl) return { sent: false as const, reason: "not-configured" };
+  const googleUrl = process.env.GOOGLE_REVIEW_URL;
   const html = shell(
     "Thank You for Visiting",
     `<p style="margin:0;font-size:15px;color:#134e4a;">Hi <strong>${data.name}</strong>,</p>
-     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">Thank you for visiting ${site.name} today — we hope everything went smoothly with your ${data.serviceTitle.toLowerCase()}.</p>
-     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">If you have a minute, a quick review helps other patients find us and means a lot to our small team.</p>
-     ${button(reviewUrl, "Leave a review ★")}
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">Thank you for visiting ${site.name} — we hope everything went smoothly with your ${data.serviceTitle.toLowerCase()}.</p>
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">If you have a minute, please rate your visit. It takes about 30 seconds and it genuinely helps our small team.</p>
+     ${button(reviewUrl(data.id), "Rate your visit ★")}
+     ${
+       googleUrl
+         ? `<p style="margin:16px 0 0;font-size:12px;color:#3f6b66;text-align:center;">You can also <a href="${googleUrl}" style="color:#0891b2;font-weight:bold;">review us on Google</a>.</p>`
+         : ""
+     }
      <p style="margin:14px 0 0;font-size:12px;color:#3f6b66;text-align:center;">Had a problem? Please call us at ${site.phone} — we'd like to make it right.</p>`
   );
   return sendEmail({ to: data.email, subject: `How was your visit to ${site.name}?`, html });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — portal, intake, recall, waitlist
+// ---------------------------------------------------------------------------
+
+export async function sendPortalMagicLink(
+  to: string,
+  link: string,
+  minutes: number
+) {
+  const html = shell(
+    "Sign in to your account",
+    `<p style="margin:0;font-size:15px;color:#134e4a;">Here's your secure sign-in link.</p>
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">No password needed — just tap the button below to see your appointments, history, and forms.</p>
+     ${button(link, "Open my appointments", "#0891b2")}
+     <p style="margin:16px 0 0;font-size:12px;color:#3f6b66;text-align:center;">This link works once and expires in ${minutes} minutes. If you didn't request it, you can safely ignore this email.</p>`
+  );
+  return sendEmail({ to, subject: `Your ${site.name} sign-in link`, html });
+}
+
+export async function sendIntakeRequest(data: AppointmentEmailData) {
+  const html = shell(
+    "Before Your First Visit",
+    `<p style="margin:0;font-size:15px;color:#134e4a;">Hi <strong>${data.name}</strong>,</p>
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">Welcome to ${site.name}! Please complete your new-patient form before your appointment on <strong>${formatLongDate(data.date)}</strong> — it takes about three minutes on your phone and means no clipboard at reception.</p>
+     ${button(intakeUrl(data.id), "Complete my forms")}
+     <p style="margin:14px 0 0;font-size:12px;color:#3f6b66;text-align:center;">Your answers are stored securely and seen only by your clinical team.</p>`
+  );
+  return sendEmail({
+    to: data.email,
+    subject: `Complete your new-patient form before your visit`,
+    html,
+  });
+}
+
+export async function sendRecallReminder(data: {
+  name: string;
+  email: string;
+  monthsSince: number;
+}) {
+  const html = shell(
+    "Time for a Check-up",
+    `<p style="margin:0;font-size:15px;color:#134e4a;">Hi <strong>${data.name}</strong>,</p>
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">It's been about ${data.monthsSince} months since your last visit to ${site.name}. Regular check-ups and cleanings catch small problems while they're still small — and cheap to fix.</p>
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">Booking takes under a minute and you can pick your dentist and time.</p>
+     ${button(`${siteUrl()}/book`, "Book my check-up")}
+     <p style="margin:14px 0 0;font-size:12px;color:#3f6b66;text-align:center;">Prefer to talk? Call us at ${site.phone}.</p>`
+  );
+  return sendEmail({
+    to: data.email,
+    subject: `${data.name.split(" ")[0]}, you're due for a check-up`,
+    html,
+  });
+}
+
+export async function sendWaitlistOpening(data: {
+  name: string;
+  email: string;
+  serviceTitle: string;
+  date: string;
+  timeSlot: string;
+}) {
+  const html = shell(
+    "An Earlier Slot Opened Up",
+    `<p style="margin:0;font-size:15px;color:#134e4a;">Hi <strong>${data.name}</strong>,</p>
+     <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#3f6b66;">Good news — a slot just opened that matches what you were waiting for:</p>
+     ${detailRows([
+       ["Treatment", data.serviceTitle],
+       ["Date", formatLongDate(data.date)],
+       ["Time", formatSlot(data.timeSlot)],
+     ])}
+     <p style="margin:14px 0 0;font-size:13px;color:#78350f;background:#fef3c7;border-radius:8px;padding:10px 14px;">Slots like this go quickly — it's first come, first served.</p>
+     ${button(`${siteUrl()}/book`, "Grab this slot")}
+     <p style="margin:14px 0 0;font-size:12px;color:#3f6b66;text-align:center;">Or call ${site.phone} and we'll book it for you.</p>`
+  );
+  return sendEmail({
+    to: data.email,
+    subject: `An earlier ${data.serviceTitle.toLowerCase()} slot just opened`,
+    html,
+  });
 }

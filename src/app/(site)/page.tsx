@@ -7,6 +7,7 @@ import { InsuranceWall } from "@/components/sections/insurance-wall";
 import { Testimonials } from "@/components/sections/testimonials";
 import { FaqSection } from "@/components/sections/faq";
 import { CtaBand } from "@/components/sections/cta-band";
+import { getReviewSummary } from "@/lib/reviews";
 import { site } from "@/data/site";
 
 export const metadata: Metadata = {
@@ -14,7 +15,11 @@ export const metadata: Metadata = {
   description: site.description,
 };
 
-function LocalBusinessJsonLd() {
+function LocalBusinessJsonLd({
+  rating,
+}: {
+  rating: { count: number; average: number };
+}) {
   const data = {
     "@context": "https://schema.org",
     "@type": "Dentist",
@@ -29,6 +34,17 @@ function LocalBusinessJsonLd() {
       postalCode: site.address.zip,
     },
     openingHours: ["Mo-Th 08:00-18:00", "Fr 08:00-16:00", "Sa 09:00-13:00"],
+    ...(rating.count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: rating.average,
+            reviewCount: rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
   };
   return (
     <script
@@ -38,10 +54,11 @@ function LocalBusinessJsonLd() {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const rating = await getReviewSummary();
   return (
     <>
-      <LocalBusinessJsonLd />
+      <LocalBusinessJsonLd rating={rating} />
       <Hero />
       <Stats />
       <Welcome />

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyManageToken } from "@/lib/manage-token";
 import { getAvailability } from "@/lib/availability";
 import { logAudit } from "@/lib/audit";
+import { notifyWaitlistForOpening } from "@/lib/waitlist";
 
 function isFuture(date: string, timeSlot: string): boolean {
   return new Date(`${date}T${timeSlot}:00`).getTime() > Date.now();
@@ -48,6 +49,12 @@ export async function cancelByToken(token: string): Promise<ManageResult> {
     data: { status: "CANCELLED" },
   });
   await logAudit("patient", "appointment.cancel", "Appointment", appointment.id, "via manage link");
+  // Offer the freed slot to anyone waiting for an earlier appointment
+  await notifyWaitlistForOpening({
+    date: appointment.date,
+    timeSlot: appointment.timeSlot,
+    dentistId: appointment.dentistId,
+  });
   return { ok: true };
 }
 

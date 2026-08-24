@@ -1,8 +1,9 @@
 # BrightSmile Dental — Clinic Website & Practice Management Demo
 
 A complete, fully functional dental clinic platform: a modern marketing website, a real
-online booking system with live availability, and a practice-management admin panel with
-a drag-and-drop calendar, patient records, and staff roles.
+online booking system with live availability, a patient portal with digital intake forms
+and moderated reviews, and a practice-management admin panel with a drag-and-drop
+calendar, patient records, reporting, and staff roles.
 
 ![Home page](docs/screenshots/home.png)
 
@@ -30,11 +31,27 @@ npm run dev                 # http://localhost:3000
 
 Production build: `npm run build && npm start`
 
+### Trying the patient flows locally
+
+Tokenised links normally arrive by email. To open them directly (note the
+`--env-file` — without it the tokens are signed with the wrong secret):
+
+```bash
+npx tsx --env-file=.env scripts/phase3-links.ts          # intake / manage / review links
+npx tsx --env-file=.env scripts/portal-link.ts you@example.com   # portal magic link
+npx tsx --env-file=.env scripts/recall-fixture.ts        # a patient overdue for recall
+npx tsx --env-file=.env scripts/phase3-state.ts          # dump reviews/intake/waitlist
+```
+
 ## Features
 
 ### Public website
 - Home, About, Contact, Smile Gallery (lightbox), Blog (4 articles)
 - **Services**: 20 treatments across 9 filterable categories, each with its own detail page
+- **Pricing** (`/pricing`): published starting price for every treatment, straight from the
+  database, plus a monthly-payment calculator and the in-house membership plan
+- **Reviews** (`/reviews`): moderated patient reviews with a rating breakdown, clinic
+  replies, and `AggregateRating` + `Review` JSON-LD so stars can show in search results
 - SEO: per-page metadata, `sitemap.xml`, `robots.txt`, `Dentist` JSON-LD schema
 - Accessibility: skip link, aria states, focus rings, reduced-motion support, 44px touch targets
 
@@ -53,6 +70,23 @@ patient can:
 - **Reschedule** to any available slot (reminders reset automatically)
 - **Cancel** (slot is released instantly)
 - **Add to calendar** (.ics download with a 2-hour alarm)
+
+### Patient portal (`/portal`)
+Passwordless sign-in: enter your email, get a single-use magic link (hashed at rest,
+20-minute expiry), and land on your own dashboard — upcoming appointments with manage
+links, outstanding forms, full visit history, and a rating link for completed visits.
+
+### Digital intake forms (`/intake/[token]`)
+New patients get a secure link with their confirmation email and complete a mobile-first
+medical history before arriving: conditions, medications, allergies, dental history,
+insurance and a typed signature. Staff see the answers on the patient record with
+allergies and medical flags called out, and the day sheet marks who still owes a form.
+
+### Cancellation waitlist (`/waitlist`)
+Patients register the treatment, dentist, date window and time of day that would work.
+When an appointment is cancelled — by staff or by the patient — the freed day is
+re-checked against the scheduling engine and matching people are emailed automatically
+(up to three per opening, oldest first).
 
 ### Automated communication (`src/lib/jobs.ts`)
 An idempotent job processor runs every 10 minutes in-process (see
@@ -78,7 +112,14 @@ An idempotent job processor runs every 10 minutes in-process (see
 - **Status lifecycle**: unconfirmed → confirmed → arrived → completed / cancelled / no-show
 - **Patients** — records auto-created from bookings: visit history, notes, no-show count, search
 - **Follow-ups** — no-shows and cancellations who never rebooked, in one chase list
-- **Day sheet** — printable daily schedule for the front desk
+- **Recall** — patients whose last visit was over six months ago with nothing booked,
+  with a one-click "send recall" email and an opt-out; contacted patients drop off for 60 days
+- **Waitlist** — everyone waiting for an earlier slot, with their window and preferences
+- **Reviews** — moderation queue: publish, unpublish, feature on the home page, reply publicly
+- **Reports** — any date range: bookings, estimated revenue from completed visits, no-show
+  rate, new patients, per-dentist and per-treatment breakdowns, plus **CSV export** of
+  appointments, patients and reviews
+- **Day sheet** — printable daily schedule for the front desk, with intake-form status
 - **Settings** — booking rules, treatments & pricing, working hours, closed dates, time blocks, staff accounts
 - **Audit log** — who changed what, when (patient self-service actions included)
 
@@ -132,20 +173,32 @@ account email from `onboarding@resend.dev`.
 
 ```
 src/
-  app/(site)/          public pages (home, services, about, gallery, blog, contact, book)
-  app/admin/           admin panel: dashboard, calendar, patients, day-sheet, settings, login
+  app/(site)/          public pages (home, services, pricing, reviews, gallery, blog,
+                       contact, book, waitlist, portal, intake/[token], review/[token])
+  app/admin/           dashboard, calendar, patients, follow-ups, recall, waitlist,
+                       reviews, reports (+ CSV export route), day-sheet, settings, login
   components/
     sections/          home-page sections (hero, stats, testimonials, FAQ, …)
-    booking/           public booking form
-    admin/             calendar view, modals, settings panels, patient detail
+    booking/           public booking form + waitlist form
+    intake/            new-patient medical history form
+    portal/            magic-link sign-in
+    reviews/           star rating, review submission form
+    pricing/           financing calculator
+    admin/             calendar view, modals, settings panels, patient detail, moderation
     ui/                shadcn/ui primitives
-  data/                marketing content (services copy, team, testimonials, FAQs, blog)
+  data/                marketing content (services copy, team, FAQs, blog, intake fields)
   lib/
     availability.ts    the scheduling engine (slots from hours/durations/blocks/closures)
-    actions/           server actions: booking, contact, admin
+    jobs.ts            reminders, review requests, daily digest (idempotent)
+    waitlist.ts        matches freed slots to waiting patients
+    recall.ts          who is overdue for a check-up
+    portal.ts          patient magic links + portal session
+    manage-token.ts    purpose-scoped HMAC links (manage / intake / review)
+    actions/           server actions: booking, contact, admin, manage, portal,
+                       intake, reviews, waitlist
     auth.ts + proxy.ts staff sessions (HMAC cookie) + /admin route guard
 prisma/                schema, seed script, SQLite database (gitignored)
-scripts/               dev utilities (check-db, migrate-legacy)
+scripts/               dev utilities (check-db, phase3-links, portal-link, fixtures)
 ```
 
 ## Production notes
@@ -154,7 +207,8 @@ Before deploying for a real clinic:
 - Swap SQLite for Postgres/Turso (Prisma adapter change) — required on serverless hosts
 - Rotate `AUTH_SECRET`, all email keys, and every seeded password
 - Add rate limiting to the public forms, plus privacy/terms pages
-- See the project roadmap for Phase 2 (patient reschedule links, automated reminders,
-  staff notifications) and Phase 3 (reviews, patient portal, intake forms)
+- Intake forms hold health information — review your jurisdiction's requirements
+  (HIPAA/GDPR) before going live, and set a retention policy
+- Error monitoring (Sentry) and scheduled database backups
 
 > This is a demo — the clinic, its people, and all testimonials are fictional.

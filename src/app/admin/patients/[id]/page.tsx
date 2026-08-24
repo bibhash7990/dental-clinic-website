@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Star } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PatientEditor, PatientNotes } from "@/components/admin/patient-detail";
+import { IntakeSummary } from "@/components/admin/intake-summary";
 import { formatSlot } from "@/data/site";
 
 export const metadata: Metadata = {
@@ -35,9 +36,25 @@ export default async function PatientDetailPage(
         include: { dentist: { select: { name: true } } },
       },
       notes: { orderBy: { createdAt: "desc" } },
+      intakeForms: {
+        where: { status: "COMPLETED" },
+        orderBy: { submittedAt: "desc" },
+        take: 1,
+      },
+      reviews: { orderBy: { createdAt: "desc" }, take: 3 },
     },
   });
   if (!patient) notFound();
+
+  const intake = patient.intakeForms[0];
+  let intakeData: Record<string, unknown> | null = null;
+  if (intake?.data) {
+    try {
+      intakeData = JSON.parse(intake.data) as Record<string, unknown>;
+    } catch {
+      intakeData = null;
+    }
+  }
 
   const noShows = patient.appointments.filter((a) => a.status === "NO_SHOW").length;
   const completed = patient.appointments.filter((a) => a.status === "COMPLETED").length;
@@ -91,6 +108,40 @@ export default async function PatientDetailPage(
         </div>
 
         <div className="lg:col-span-2">
+          {intakeData && (
+            <div className="mb-6">
+              <IntakeSummary
+                submittedAt={intake?.submittedAt ?? null}
+                data={intakeData}
+              />
+            </div>
+          )}
+
+          {patient.reviews.length > 0 && (
+            <Card className="mb-6">
+              <CardContent className="p-5">
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Star className="size-4 text-amber-400" aria-hidden />
+                  Reviews left by this patient
+                </h2>
+                <ul className="mt-3 space-y-3">
+                  {patient.reviews.map((r) => (
+                    <li key={r.id} className="text-sm">
+                      <p className="font-medium">
+                        {r.rating}★ · {r.serviceTitle ?? "—"}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {r.status.toLowerCase()} ·{" "}
+                          {r.createdAt.toISOString().slice(0, 10)}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">{r.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <h2 className="text-lg font-semibold">Appointment history</h2>
           <div className="mt-3 space-y-3">
             {patient.appointments.length === 0 ? (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Clock, Gift, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { BellRing, Clock, Gift, ShieldCheck } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { BookingForm } from "@/components/booking/booking-form";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,6 +72,24 @@ export default async function BookPage(props: PageProps<"/book">) {
                 </CardContent>
               </Card>
             ))}
+            <Card className="border-l-4 border-l-cta">
+              <CardContent className="p-6">
+                <span className="inline-flex size-11 items-center justify-center rounded-xl bg-cta/10">
+                  <BellRing className="size-5 text-cta" aria-hidden />
+                </span>
+                <h2 className="mt-3 font-semibold">Nothing soon enough?</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  Join the cancellation waitlist and we&rsquo;ll email you the
+                  moment an earlier slot frees up.
+                </p>
+                <Link
+                  href="/waitlist"
+                  className="mt-3 inline-block text-sm font-semibold text-cta hover:underline"
+                >
+                  Join the waitlist →
+                </Link>
+              </CardContent>
+            </Card>
             <Card>
               <CardContent className="p-6">
                 <h2 className="font-semibold">Prefer to call?</h2>

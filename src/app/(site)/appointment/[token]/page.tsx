@@ -33,9 +33,9 @@ export default async function ManageAppointmentPage(
   // Request-time comparison — this is a dynamic server component, so reading
   // the clock here is per-request, not per-re-render.
   // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   const isPast =
-    new Date(`${appointment.date}T${appointment.timeSlot}:00`).getTime() <
-    Date.now();
+    new Date(`${appointment.date}T${appointment.timeSlot}:00`).getTime() < now;
 
   if (appointment.status === "CANCELLED") {
     return (

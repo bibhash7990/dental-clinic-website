@@ -90,6 +90,14 @@ model Patient {
   notes        PatientNote[]
   appointments Appointment[]
 
+  // Recall (Phase 3) — "due for a 6-month cleaning" campaign
+  recallSentAt DateTime?
+  recallOptOut Boolean @default(false)
+
+  reviews      Review[]
+  intakeForms  IntakeForm[]
+  waitlist     WaitlistEntry[]
+
   @@index([phone])
   @@index([name])
 }
@@ -133,6 +141,10 @@ model Appointment {
   reviewAskAt   DateTime?
   followedUpAt  DateTime? // no-show/cancellation chased by staff
 
+  // Phase 3
+  review     Review?
+  intakeForm IntakeForm?
+
   @@index([date, timeSlot])
   @@index([date])
   @@index([status])
@@ -149,6 +161,80 @@ model ContactMessage {
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ---------- Reviews (Phase 3) ----------
+
+model Review {
+  id            String       @id @default(cuid())
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  patientId     String?
+  patient       Patient?     @relation(fields: [patientId], references: [id])
+  authorName    String
+  serviceTitle  String?
+  rating        Int // 1–5
+  text          String
+  status        String       @default("PENDING") // PENDING | APPROVED | REJECTED
+  featured      Boolean      @default(false)
+  reply         String? // clinic's public response
+  createdAt     DateTime     @default(now())
+  moderatedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+// ---------- Digital intake form (Phase 3) ----------
+
+model IntakeForm {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId     String?
+  patient       Patient?    @relation(fields: [patientId], references: [id])
+  status        String      @default("SENT") // SENT | COMPLETED
+  data          String? // JSON payload of the completed form
+  submittedAt   DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([status])
+}
+
+// ---------- Earlier-slot waitlist (Phase 3) ----------
+
+model WaitlistEntry {
+  id           String    @id @default(cuid())
+  patientId    String?
+  patient      Patient?  @relation(fields: [patientId], references: [id])
+  name         String
+  email        String
+  phone        String
+  serviceSlug  String
+  serviceTitle String
+  dentistId    String? // preferred dentist, null = any
+  earliestDate String // YYYY-MM-DD
+  latestDate   String // YYYY-MM-DD
+  preference   String    @default("ANY") // ANY | MORNING | AFTERNOON
+  notes        String?
+  status       String    @default("ACTIVE") // ACTIVE | NOTIFIED | BOOKED | CLOSED
+  notifiedAt   DateTime?
+  notifyCount  Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@index([status])
+}
+
+// ---------- Patient portal magic links (Phase 3) ----------
+
+model MagicLink {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
 }
 
 // ---------- Settings & audit ----------

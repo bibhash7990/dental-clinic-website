@@ -5,7 +5,18 @@ import { blogPosts } from "@/data/blog-posts";
 const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticRoutes = ["", "/services", "/about", "/gallery", "/blog", "/contact", "/book"].map(
+  const staticRoutes = [
+    "",
+    "/services",
+    "/pricing",
+    "/reviews",
+    "/about",
+    "/gallery",
+    "/blog",
+    "/contact",
+    "/book",
+    "/waitlist",
+  ].map(
     (path) => ({
       url: `${base}${path}`,
       changeFrequency: "monthly" as const,

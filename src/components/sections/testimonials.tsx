@@ -1,46 +1,59 @@
-import { Star } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionHeading } from "@/components/section-heading";
 import { Reveal } from "@/components/reveal";
+import { StarRating } from "@/components/reviews/star-rating";
+import { getPublishedReviews, getReviewSummary } from "@/lib/reviews";
 import { testimonials } from "@/data/testimonials";
 
-function Rating({ value, name }: { value: number; name: string }) {
-  return (
-    <div
-      className="flex gap-0.5"
-      role="img"
-      aria-label={`${value} out of 5 stars from ${name}`}
-    >
-      {Array.from({ length: 5 }, (_, i) => (
-        <Star
-          key={i}
-          aria-hidden
-          className={
-            i < value
-              ? "size-4 fill-amber-400 text-amber-400"
-              : "size-4 text-border"
-          }
-        />
-      ))}
-    </div>
-  );
-}
+/**
+ * Real, moderated patient reviews when the clinic has them; the seeded
+ * demo quotes only stand in while the review list is still short.
+ */
+export async function Testimonials() {
+  const [reviews, summary] = await Promise.all([
+    getPublishedReviews(3),
+    getReviewSummary(),
+  ]);
 
-export function Testimonials() {
+  const cards =
+    reviews.length >= 3
+      ? reviews.map((r) => ({
+          key: r.id,
+          name: r.authorName,
+          treatment: r.serviceTitle ?? "Verified patient",
+          quote: r.text,
+          rating: r.rating,
+        }))
+      : testimonials.slice(0, 3).map((t) => ({
+          key: t.name,
+          name: t.name,
+          treatment: t.treatment,
+          quote: t.quote,
+          rating: t.rating,
+        }));
+
   return (
     <section className="bg-section py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Patient stories"
           title="Trusted by thousands of smiles"
-          description="Real feedback from real treatments — no scripts, no stock quotes."
+          description={
+            summary.count > 0
+              ? `${summary.average} out of 5 from ${summary.count} verified patient review${summary.count === 1 ? "" : "s"}, collected after treatment.`
+              : "Real feedback from real treatments — no scripts, no stock quotes."
+          }
         />
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {testimonials.map((t, i) => (
-            <Reveal key={t.name} delay={(i % 3) * 0.08}>
+          {cards.map((t, i) => (
+            <Reveal key={t.key} delay={(i % 3) * 0.08}>
               <Card className="h-full">
                 <CardContent className="flex h-full flex-col gap-4 p-6">
-                  <Rating value={t.rating} name={t.name} />
+                  <StarRating
+                    value={t.rating}
+                    label={`${t.rating} out of 5 stars from ${t.name}`}
+                  />
                   <blockquote className="flex-1 text-sm leading-relaxed text-foreground">
                     &ldquo;{t.quote}&rdquo;
                   </blockquote>
@@ -53,6 +66,13 @@ export function Testimonials() {
             </Reveal>
           ))}
         </div>
+        {summary.count > 0 && (
+          <p className="mt-8 text-center text-sm">
+            <Link href="/reviews" className="font-semibold text-primary hover:underline">
+              Read all {summary.count} patient reviews →
+            </Link>
+          </p>
+        )}
       </div>
     </section>
   );

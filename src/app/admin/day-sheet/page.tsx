@@ -26,7 +26,10 @@ export default async function DaySheetPage(props: PageProps<"/admin/day-sheet">)
   const appointments = await prisma.appointment.findMany({
     where: { date, status: { notIn: ["CANCELLED"] } },
     orderBy: [{ timeSlot: "asc" }],
-    include: { dentist: { select: { name: true } } },
+    include: {
+      dentist: { select: { name: true } },
+      intakeForm: { select: { status: true } },
+    },
   });
 
   const longDate = new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
@@ -103,6 +106,16 @@ export default async function DaySheetPage(props: PageProps<"/admin/day-sheet">)
                     {a.isNewPatient && (
                       <span className="ml-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">
                         New
+                      </span>
+                    )}
+                    {a.intakeForm?.status === "SENT" && (
+                      <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-900">
+                        Forms due
+                      </span>
+                    )}
+                    {a.intakeForm?.status === "COMPLETED" && (
+                      <span className="ml-1.5 rounded bg-cta/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-cta">
+                        Forms in
                       </span>
                     )}
                   </td>

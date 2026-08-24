@@ -31,10 +31,12 @@ import { Logo } from "@/components/layout/logo";
 
 const quickLinks = [
   { href: "/services", label: "Our Services" },
-  { href: "/about", label: "About Us" },
+  { href: "/pricing", label: "Pricing & Payment" },
+  { href: "/reviews", label: "Patient Reviews" },
   { href: "/gallery", label: "Smile Gallery" },
   { href: "/blog", label: "Dental Tips" },
-  { href: "/contact", label: "Contact" },
+  { href: "/portal", label: "Patient Portal" },
+  { href: "/waitlist", label: "Cancellation Waitlist" },
   { href: "/book", label: "Book Appointment" },
 ];
 

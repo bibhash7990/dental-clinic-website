@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Phone } from "lucide-react";
+import { Menu, X, Phone, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { site } from "@/data/site";
@@ -12,7 +12,9 @@ import { Logo } from "@/components/layout/logo";
 const links = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
+  { href: "/reviews", label: "Reviews" },
   { href: "/gallery", label: "Gallery" },
   { href: "/blog", label: "Blog" },
   { href: "/contact", label: "Contact" },
@@ -71,9 +73,16 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
+          <Link
+            href="/portal"
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <UserRound className="size-4" aria-hidden />
+            My account
+          </Link>
           <a
             href={`tel:${site.phone.replace(/[^+\d]/g, "")}`}
-            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="hidden items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground xl:flex"
           >
             <Phone className="size-4" aria-hidden />
             {site.phone}
@@ -123,6 +132,15 @@ export function Navbar() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link
+                href="/portal"
+                onClick={() => setOpen(false)}
+                className="block rounded-md px-3 py-3 text-base font-medium hover:bg-accent"
+              >
+                My account
+              </Link>
+            </li>
           </ul>
           <Link
             href="/book"

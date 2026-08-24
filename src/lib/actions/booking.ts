@@ -2,7 +2,11 @@
 
 import { prisma } from "@/lib/prisma";
 import { bookingSchema, type BookingInput } from "@/lib/validation";
-import { sendBookingConfirmation, sendClinicNewBookingAlert } from "@/lib/email";
+import {
+  sendBookingConfirmation,
+  sendClinicNewBookingAlert,
+  sendIntakeRequest,
+} from "@/lib/email";
 import {
   getAvailability,
   getBookingSettings,
@@ -160,7 +164,7 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
           patientId,
           dentistId,
           name: data.name,
-          email: data.email,
+          email: data.email.toLowerCase(),
           phone: data.phone,
           serviceSlug: service.slug,
           serviceTitle: service.title,
@@ -201,6 +205,18 @@ export async function createBooking(input: BookingInput): Promise<BookingResult>
     phone: data.phone,
     createdBy: "ONLINE",
   });
+
+  // New patients get the digital intake form instead of a clipboard
+  if (data.isNewPatient) {
+    try {
+      await prisma.intakeForm.create({
+        data: { appointmentId, patientId, status: "SENT" },
+      });
+      await sendIntakeRequest(emailData);
+    } catch (err) {
+      console.error("[booking] intake request failed", err);
+    }
+  }
 
   return { ok: true, reference };
 }

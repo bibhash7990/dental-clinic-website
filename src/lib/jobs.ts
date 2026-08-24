@@ -65,22 +65,24 @@ export async function processScheduledJobs(): Promise<JobRunResult> {
       status: { in: ["PENDING", "CONFIRMED"] },
       date: { gte: todayISO, lte: horizon },
     },
+    include: { intakeForm: { select: { status: true } } },
   });
 
   for (const a of upcoming) {
     const startsIn = apptDateTime(a.date, a.timeSlot).getTime() - now.getTime();
     if (startsIn <= 0) continue;
     const hours = startsIn / 3600_000;
+    const intakePending = a.intakeForm?.status === "SENT";
     try {
       if (hours <= 24 && !a.reminder24At) {
-        await sendReminder(toEmailData(a), "24h");
+        await sendReminder({ ...toEmailData(a), intakePending }, "24h");
         await prisma.appointment.update({
           where: { id: a.id },
           data: { reminder24At: now, ...(a.reminder72At ? {} : { reminder72At: now }) },
         });
         result.reminders24++;
       } else if (hours <= 72 && !a.reminder72At) {
-        await sendReminder(toEmailData(a), "72h");
+        await sendReminder({ ...toEmailData(a), intakePending }, "72h");
         await prisma.appointment.update({
           where: { id: a.id },
           data: { reminder72At: now },
@@ -103,14 +105,12 @@ export async function processScheduledJobs(): Promise<JobRunResult> {
       (apptDateTime(a.date, a.timeSlot).getTime() + a.durationMin * 60_000);
     if (endedAgoMs < 2 * 3600_000) continue;
     try {
-      const sent = await sendReviewRequest(toEmailData(a));
+      await sendReviewRequest(toEmailData(a));
       await prisma.appointment.update({
         where: { id: a.id },
         data: { reviewAskAt: now },
       });
-      if (sent.sent !== false || sent.reason !== "not-configured") {
-        result.reviewRequests++;
-      }
+      result.reviewRequests++;
     } catch (err) {
       console.error(`[jobs] review request failed for ${a.reference}`, err);
     }

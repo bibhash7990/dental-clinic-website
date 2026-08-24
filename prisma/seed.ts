@@ -149,6 +149,7 @@ async function main() {
     slotStepMin: "30",
     minNoticeHours: "12",
     maxAdvanceDays: "90",
+    recallMonths: "6",
   };
   for (const [key, value] of Object.entries(settings)) {
     await prisma.setting.upsert({
@@ -158,10 +159,77 @@ async function main() {
     });
   }
 
+  // Published reviews, so the site and the schema markup aren't empty on day
+  // one. Real ones arrive through the post-visit email and need moderating.
+  const seedReviews = [
+    {
+      authorName: "Sarah J.",
+      serviceTitle: "Porcelain Veneers",
+      rating: 5,
+      text: "I put this off for years because I hated the idea of someone touching my front teeth. Dr. Chen talked me through every step and showed me a digital preview first. The veneers look like my own teeth, only the version I wanted.",
+      reply:
+        "Thank you Sarah — we love hearing this. Enjoy the new smile, and see you at your check-up!",
+    },
+    {
+      authorName: "Michael C.",
+      serviceTitle: "Dental Implants",
+      rating: 5,
+      text: "Two implants, no drama. The clinic ran on time both visits and the aftercare instructions were actually clear. I ate a steak six weeks later.",
+      reply: null,
+    },
+    {
+      authorName: "Emma D.",
+      serviceTitle: "Invisible Aligners",
+      rating: 5,
+      text: "Eleven months of aligners and nobody at work noticed I was in treatment. The check-ins were quick and I could message the practice between visits.",
+      reply: null,
+    },
+    {
+      authorName: "Priya N.",
+      serviceTitle: "Comprehensive Check-ups",
+      rating: 4,
+      text: "Thorough exam and the hygienist was excellent — genuinely gentle. Docked a star because I waited about fifteen minutes past my slot, but they apologised and explained why.",
+      reply:
+        "Thanks for the honest feedback Priya — we had an emergency patient that morning. We've since built more buffer into the diary.",
+    },
+    {
+      authorName: "Tom R.",
+      serviceTitle: "Emergency Dental Care",
+      rating: 5,
+      text: "Cracked a molar on a Saturday morning and they fitted me in the same day. Out of pain within an hour of walking through the door.",
+      reply: null,
+    },
+  ];
+  for (const r of seedReviews) {
+    const exists = await prisma.review.findFirst({
+      where: { authorName: r.authorName, appointmentId: null },
+    });
+    if (!exists) {
+      await prisma.review.create({
+        data: { ...r, status: "APPROVED", featured: r.rating === 5, moderatedAt: new Date() },
+      });
+    }
+  }
+
+  // Appointment emails are matched case-insensitively nowhere — normalise them
+  // so the patient portal finds legacy rows too.
+  const mixedCase = await prisma.appointment.findMany({
+    select: { id: true, email: true },
+  });
+  for (const a of mixedCase) {
+    if (a.email !== a.email.toLowerCase()) {
+      await prisma.appointment.update({
+        where: { id: a.id },
+        data: { email: a.email.toLowerCase() },
+      });
+    }
+  }
+
   console.log("Seed complete:");
   console.log(`  services:  ${await prisma.serviceItem.count()}`);
   console.log(`  dentists:  ${await prisma.dentist.count()}`);
   console.log(`  users:     ${await prisma.user.count()}`);
+  console.log(`  reviews:   ${await prisma.review.count()}`);
 }
 
 main().finally(() => prisma.$disconnect());

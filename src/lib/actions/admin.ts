@@ -7,6 +7,8 @@ import { verifyPassword } from "@/lib/password";
 import { clearSessionCookie, requireRole, setSessionCookie } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { getAvailability, pickDentist } from "@/lib/availability";
+import { notifyWaitlistForOpening } from "@/lib/waitlist";
+import { sendRecallReminder } from "@/lib/email";
 import type { StaffRole } from "@/lib/auth-token";
 
 // ---------- Auth ----------
@@ -55,8 +57,18 @@ const VALID_STATUSES = [
 export async function updateAppointmentStatus(id: string, status: string) {
   const session = await requireRole();
   if (!VALID_STATUSES.includes(status)) throw new Error("Invalid status");
-  await prisma.appointment.update({ where: { id }, data: { status } });
+  const updated = await prisma.appointment.update({
+    where: { id },
+    data: { status },
+  });
   await logAudit(session.email, "appointment.status", "Appointment", id, status);
+  if (status === "CANCELLED") {
+    await notifyWaitlistForOpening({
+      date: updated.date,
+      timeSlot: updated.timeSlot,
+      dentistId: updated.dentistId,
+    });
+  }
   revalidatePath("/admin", "layout");
 }
 
@@ -150,7 +162,7 @@ export async function createAdminAppointment(
       patientId,
       dentistId,
       name: input.name.trim(),
-      email: input.email.trim(),
+      email: input.email.trim().toLowerCase(),
       phone: input.phone.trim(),
       serviceSlug: service.slug,
       serviceTitle: service.title,
@@ -303,6 +315,7 @@ export async function saveService(data: {
     await logAudit(session.email, "service.create", "ServiceItem", created.id, data.title);
   }
   revalidatePath("/admin/settings");
+  revalidatePath("/pricing");
 }
 
 // ---------- Settings: availability ----------
@@ -479,4 +492,114 @@ export async function getAdminAvailability(
     ignoreAppointmentId,
     ignoreMinNotice: true,
   });
+}
+
+// ---------- Reviews (Phase 3) ----------
+
+export async function moderateReview(
+  id: string,
+  action: "APPROVE" | "REJECT" | "PENDING" | "FEATURE" | "UNFEATURE"
+) {
+  const session = await requireRole("OWNER", "RECEPTIONIST");
+  const data =
+    action === "FEATURE"
+      ? { featured: true }
+      : action === "UNFEATURE"
+        ? { featured: false }
+        : {
+            status:
+              action === "APPROVE"
+                ? "APPROVED"
+                : action === "REJECT"
+                  ? "REJECTED"
+                  : "PENDING",
+            moderatedAt: new Date(),
+            ...(action === "APPROVE" ? {} : { featured: false }),
+          };
+  await prisma.review.update({ where: { id }, data });
+  await logAudit(session.email, "review.moderate", "Review", id, action);
+  revalidatePath("/admin/reviews");
+  revalidatePath("/reviews");
+  revalidatePath("/");
+}
+
+export async function replyToReview(id: string, reply: string) {
+  const session = await requireRole("OWNER", "RECEPTIONIST");
+  await prisma.review.update({
+    where: { id },
+    data: { reply: reply.trim() || null },
+  });
+  await logAudit(session.email, "review.reply", "Review", id);
+  revalidatePath("/admin/reviews");
+  revalidatePath("/reviews");
+}
+
+// ---------- Recall (Phase 3) ----------
+
+export async function sendRecall(patientId: string) {
+  const session = await requireRole();
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId },
+    include: {
+      appointments: {
+        where: { status: "COMPLETED" },
+        orderBy: { date: "desc" },
+        take: 1,
+        select: { date: true },
+      },
+    },
+  });
+  if (!patient?.email) return { ok: false as const, error: "No email on file." };
+
+  const lastVisit = patient.appointments[0]?.date;
+  const monthsSince = lastVisit
+    ? Math.max(
+        1,
+        Math.round(
+          (Date.now() - new Date(`${lastVisit}T00:00:00`).getTime()) /
+            (30 * 86_400_000)
+        )
+      )
+    : 6;
+
+  await sendRecallReminder({
+    name: patient.name,
+    email: patient.email,
+    monthsSince,
+  });
+  await prisma.patient.update({
+    where: { id: patientId },
+    data: { recallSentAt: new Date() },
+  });
+  await logAudit(session.email, "recall.send", "Patient", patientId, `${monthsSince}mo`);
+  revalidatePath("/admin/recall");
+  return { ok: true as const };
+}
+
+export async function setRecallOptOut(patientId: string, optOut: boolean) {
+  const session = await requireRole();
+  await prisma.patient.update({
+    where: { id: patientId },
+    data: { recallOptOut: optOut },
+  });
+  await logAudit(
+    session.email,
+    "recall.optout",
+    "Patient",
+    patientId,
+    optOut ? "opted out" : "re-enabled"
+  );
+  revalidatePath("/admin/recall");
+}
+
+// ---------- Waitlist (Phase 3) ----------
+
+export async function setWaitlistStatus(id: string, status: string) {
+  const session = await requireRole();
+  if (!["ACTIVE", "NOTIFIED", "BOOKED", "CLOSED"].includes(status)) {
+    throw new Error("Invalid status");
+  }
+  await prisma.waitlistEntry.update({ where: { id }, data: { status } });
+  await logAudit(session.email, "waitlist.status", "WaitlistEntry", id, status);
+  revalidatePath("/admin/waitlist");
 }
